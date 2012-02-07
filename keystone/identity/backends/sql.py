@@ -253,6 +253,9 @@ class Identity(sql.Base, identity.Driver):
             metadata_ref = {}
         return metadata_ref.get('roles', [])
 
+    def add_role_for_user_and_tenant(self, user_id, tenant_id, role_id):
+        return self.add_role_to_user_and_tenant(user_id, tenant_id, role_id)
+
     def add_role_to_user_and_tenant(self, user_id, tenant_id, role_id):
         metadata_ref = self.get_metadata(user_id, tenant_id)
         is_new = False
