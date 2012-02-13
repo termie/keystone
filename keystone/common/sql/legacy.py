@@ -2,6 +2,8 @@
 
 import sqlalchemy
 
+from keystone.identity.backends import sql as identity_sql
+
 
 def export_db(db):
     table_query = db.execute("show tables")
@@ -42,6 +44,8 @@ def export_db(db):
 class LegacyMigration(object):
     def __init__(self, db_string):
         self.db = sqlalchemy.create_engine(db_string)
+        self.identity_driver = identity_sql.Identity()
+        self._data = {}
         self._user_map = {}
         self._tenant_map = {}
         self._role_map = {}
@@ -61,10 +65,10 @@ class LegacyMigration(object):
         self._data = export_db(self.db)
 
     def _migrate_tenants(self):
-        for x in self.data['tenants']:
+        for x in self._data['tenants']:
             new_dict = {'description': x.get('desc', ''),
                         'id': x.get('uid', x.get('id')),
                         'enabled': x.get('enabled', True)}
             new_dict['name'] = x.get('name', new_dict.get('id'))
-
+            self.identity_driver.create_tenant(new_dict['id'], new_dict)
 
