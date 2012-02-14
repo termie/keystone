@@ -6,45 +6,28 @@ from keystone.identity.backends import sql as identity_sql
 
 
 def export_db(db):
-    table_query = db.execute("show tables")
+    table_names = db.table_names()
 
     migration_data = {}
-    for table_name in table_query.fetchall():
-        table_name = table_name[0]
-        query = db.execute("describe %s" % table_name)
-
-        column_names = []
-        column_attributes = {}
-        for column in query.fetchall():
-            column_name = column[0]
-            column_attributes[column_name] = column
-            column_name = table_name + "." + column_name
-            column_names.append(column_name)
-
-        table_dump = {}
-        table_dump['name'] = table_name
-        table_dump['column_attributes'] =  column_attributes
-
-        query = db.execute("select %s from %s"
-                           % (",".join(column_names), table_name))
+    for table_name in table_names:
+        query = db.execute("select * from %s" % table_name)
         table_data = []
         for row in query.fetchall():
             entry = {}
-            i = 0
-            for c in column_names:
-                entry[c.split('.')[1]] = row[i]
-                i = i + 1
+            for k in row.keys():
+                entry[k] = row[k]
             table_data.append(entry)
 
-        table_dump['data'] = table_data
-        migration_data[table_name] = table_dump
-        return migration_data
+        migration_data[table_name] = table_data
+
+    return migration_data
 
 
 class LegacyMigration(object):
     def __init__(self, db_string):
         self.db = sqlalchemy.create_engine(db_string)
         self.identity_driver = identity_sql.Identity()
+        self.identity_driver.db_sync()
         self._data = {}
         self._user_map = {}
         self._tenant_map = {}
@@ -73,8 +56,9 @@ class LegacyMigration(object):
                         'enabled': x.get('enabled', True)}
             new_dict['name'] = x.get('name', new_dict.get('id'))
             # track internal ids
-            self._tenant_map[new_dict['id']] = x.get('id')
+            self._tenant_map[x.get('id')] = new_dict['id']
             # create
+            #print 'create_tenant(%s, %s)' % (new_dict['id'], new_dict)
             self.identity_driver.create_tenant(new_dict['id'], new_dict)
 
     def _migrate_users(self):
@@ -88,8 +72,9 @@ class LegacyMigration(object):
                 new_dict['tenant_id'] = self._tenant_map.get(x['tenant_id'])
             new_dict['name'] = x.get('name', new_dict.get('id'))
             # track internal ids
-            self._user_map[new_dict['id']] = x.get('id')
+            self._user_map[x.get('id')] = new_dict['id']
             # create
+            #print 'create_user(%s, %s)' % (new_dict['id'], new_dict)
             self.identity_driver.create_user(new_dict['id'], new_dict)
             if new_dict.get('tenant_id'):
                 self.identity_driver.add_user_to_tenant(new_dict['tenant_id'],
@@ -101,7 +86,7 @@ class LegacyMigration(object):
             new_dict = {'id': x['id'],
                         'name': x.get('name', x['id'])}
             # track internal ids
-            self._role_map[new_dict['id']] = x.get('id')
+            self._role_map[x.get('id')] = new_dict['id']
             # create
             self.identity_driver.create_role(new_dict['id'], new_dict)
 
