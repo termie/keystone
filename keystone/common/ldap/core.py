@@ -107,7 +107,7 @@ class BaseLdap(object):
 
     def _ldap_res_to_model(self, res):
         obj = self.model(id=self._dn_to_id(res[0]))
-        for k in obj:
+        for k in obj.known_keys:
             if k in self.attribute_ignore:
                 continue
 

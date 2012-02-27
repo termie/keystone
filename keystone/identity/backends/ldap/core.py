@@ -106,7 +106,7 @@ class Identity(identity.Driver):
         tenants = self.tenant.get_user_tenants(user_id)
         user_ref['tenants'] = []
         for tenant in tenants:
-            user_ref['tenants'].append(tenant.id)
+            user_ref['tenants'].append(tenant['id'])
         return user_ref
 
     def get_user(self, user_id):
@@ -134,7 +134,7 @@ class Identity(identity.Driver):
     def get_tenants_for_user(self, user_id):
         tenant_list = []
         for tenant in self.tenant.get_user_tenants(user_id):
-            tenant_list.append(tenant.id)
+            tenant_list.append(tenant['id'])
         return tenant_list
 
     def get_roles_for_user_and_tenant(self, user_id, tenant_id):
@@ -270,7 +270,7 @@ class UserApi(common_ldap.BaseLdap, ApiShimMixin):
         if values['id'] != id:
             return None
         old_obj = self.get(id)
-        if old_obj.name != values['name']:
+        if old_obj.get('name') != values['name']:
             raise exception.Error('Changing Name not permitted')
 
         try:
@@ -278,9 +278,9 @@ class UserApi(common_ldap.BaseLdap, ApiShimMixin):
         except KeyError:
             pass
         else:
-            if old_obj.tenant_id != new_tenant:
-                if old_obj.tenant_id:
-                    self.tenant_api.remove_user(old_obj.tenant_id, id)
+            if old_obj.get('tenant_id') != new_tenant:
+                if old_obj['tenant_id']:
+                    self.tenant_api.remove_user(old_obj['tenant_id'], id)
                 if new_tenant:
                     self.tenant_api.add_user(new_tenant, id)
 
@@ -450,7 +450,7 @@ class TenantApi(common_ldap.BaseLdap, ApiShimMixin):
 
     def update(self, id, values):
         old_obj = self.get(id)
-        if old_obj.name != values['name']:
+        if old_obj['name'] != values['name']:
             raise exception.Error('Changing Name not permitted')
         super(TenantApi, self).update(id, values, old_obj)
 
@@ -694,7 +694,7 @@ class RoleApi(common_ldap.BaseLdap, ApiShimMixin):
         else:
             for tenant in self.tenant_api.get_all():
                 all_roles += self.list_tenant_roles_for_user(user_id,
-                                                             tenant.id)
+                                                             tenant['id'])
         return self._get_page(marker, limit, all_roles)
 
     def rolegrant_get_page_markers(self, user_id, tenant_id, marker, limit):
@@ -704,7 +704,7 @@ class RoleApi(common_ldap.BaseLdap, ApiShimMixin):
         else:
             for tenant in self.tenant_api.get_all():
                 all_roles += self.list_tenant_roles_for_user(user_id,
-                                                             tenant.id)
+                                                             tenant['id'])
         return self._get_page_markers(marker, limit, all_roles)
 
     def get_by_service_get_page(self, service_id, marker, limit):
