@@ -6,8 +6,8 @@ from keystone import config
 from keystone import test
 from keystone.identity.backends import ldap as identity_ldap
 
-import test_backend
 import default_fixtures
+import test_backend
 
 
 CONF = config.CONF
