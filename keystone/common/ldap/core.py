@@ -84,7 +84,7 @@ class BaseLdap(object):
 
     def get_connection(self, user=None, password=None):
         if self.LDAP_URL.startswith('fake://'):
-            conn = fakeldap.initialize(self.LDAP_URL)
+            conn = fakeldap.FakeLdap(self.LDAP_URL)
         else:
             conn = LdapWrapper(self.LDAP_URL)
 
@@ -156,7 +156,7 @@ class BaseLdap(object):
 
     def _ldap_get(self, id, filter=None):
         conn = self.get_connection()
-        query = '(objectClass=%s)' % (self.object_class,)
+        query = '(objectClass=%s)' % self.object_class
         if filter is not None:
             query = '(&%s%s)' % (filter, query)
 
