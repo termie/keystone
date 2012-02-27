@@ -1,16 +1,15 @@
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
 
-import ldap
 import sys
 import uuid
 
+import ldap
 
-from keystone import identity
 from keystone import config
+from keystone import identity
+from keystone.common import ldap as common_ldap
 from keystone.common import utils
 from keystone.identity.backends.ldap import user,tenant,role
-
-import keystone.common.ldap
 
 
 CONF = config.CONF
@@ -21,9 +20,8 @@ def _filter_user(user_ref):
         user_ref.pop('password', None)
     return user_ref
 
+
 class Identity(identity.Driver):
-
-
     def __init__(self):
         super(Identity, self).__init__()
         self.LDAP_URL = CONF.ldap.url
@@ -35,10 +33,9 @@ class Identity(identity.Driver):
         self.tenant = tenant.TenantAPI(CONF)
         self.role = role.RoleAPI(CONF)
 
-
     def get_connection(self, user=None, password=None):
         if self.LDAP_URL.startswith('fake://'):
-            conn = keystone.common.ldap.fakeldap.initialize(self.LDAP_URL)
+            conn = keystone.common.ldap.fakeldap.FakeLdap(self.LDAP_URL)
         else:
             conn = keystone.common.ldap.LDAPWrapper(self.LDAP_URL)
         if user is None:
@@ -47,7 +44,6 @@ class Identity(identity.Driver):
             password = self.LDAP_PASSWORD
         conn.simple_bind_s(user, password)
         return conn
-
 
     def get_user(self, user_id):
         user_ref = self._get_user(user_id)
@@ -64,7 +60,6 @@ class Identity(identity.Driver):
         for tenant in tenants:
             user_ref['tenants'].append(tenant.id)
         return user_ref
-
 
     def authenticate(self, user_id=None, tenant_id=None, password=None):
         """Authenticate based on a user, tenant and password.
@@ -108,14 +103,12 @@ class Identity(identity.Driver):
     def create_user(self, user_id, user):
         return self.user.create(user)
 
-
     def create_tenant(self, tenant_id, tenant):
 
         data = tenant.copy()
         if 'id' not in data or data['id'] is None:
             data['id'] = str(uuid.uuid4())
         return self.tenant.create(tenant)
-
 
     def add_user_to_tenant(self, tenant_id, user_id):
         return self.tenant.add_user(tenant_id, user_id)
