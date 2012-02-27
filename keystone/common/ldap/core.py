@@ -2,7 +2,6 @@
 
 import logging
 
-from eventlet import tpool
 import ldap
 
 from keystone.common.ldap import fakeldap
@@ -46,7 +45,7 @@ def safe_iter(attrs):
 
 
 class BaseLdap(object):
-    DEFAULT_SUFFIX="dc=example,dc=com"
+    DEFAULT_SUFFIX = "dc=example,dc=com"
     DEFAULT_OU = None
     DEFAULT_STRUCTURAL_CLASSES = None
     DEFAULT_ID_ATTR = 'cn'
@@ -187,7 +186,6 @@ class BaseLdap(object):
         else:
             return self._ldap_res_to_model(res)
 
-
     def get_all(self, filter=None):
         return [self._ldap_res_to_model(x)
                 for x in self._ldap_get_all(filter)]
@@ -278,7 +276,9 @@ class LdapWrapper(object):
         ldap_attrs = [(kind, [py2ldap(x) for x in safe_iter(values)])
                       for kind, values in attrs]
         if LOG.isEnabledFor(logging.DEBUG):
-            sane_attrs = [(kind, values if kind != 'userPassword' else ['****'])
+            sane_attrs = [(kind, values
+                           if kind != 'userPassword'
+                           else ['****'])
                           for kind, values in ldap_attrs]
             LOG.debug('LDAP add: dn=%s, attrs=%s', dn, sane_attrs)
         return self.conn.add_s(dn, ldap_attrs)

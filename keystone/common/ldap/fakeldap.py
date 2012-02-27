@@ -311,4 +311,3 @@ class FakeLdap(object):
 
         LOG.debug('FakeLdap search result: %s', objects)
         return objects
-
