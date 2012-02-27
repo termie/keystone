@@ -9,7 +9,10 @@ from keystone import config
 from keystone import identity
 from keystone.common import ldap as common_ldap
 from keystone.common import utils
-from keystone.identity.backends.ldap import user,tenant,role
+from keystone.common.ldap import fakeldap
+from keystone.identity.backends.ldap import role
+from keystone.identity.backends.ldap import tenant
+from keystone.identity.backends.ldap import user
 
 
 CONF = config.CONF
@@ -29,15 +32,15 @@ class Identity(identity.Driver):
         self.LDAP_PASSWORD = CONF.ldap.password
         self.suffix = CONF.ldap.suffix
 
-        self.user = user.UserAPI(CONF)
-        self.tenant = tenant.TenantAPI(CONF)
-        self.role = role.RoleAPI(CONF)
+        self.user = user.UserApi(CONF)
+        self.tenant = tenant.TenantApi(CONF)
+        self.role = role.RoleApi(CONF)
 
     def get_connection(self, user=None, password=None):
         if self.LDAP_URL.startswith('fake://'):
-            conn = keystone.common.ldap.fakeldap.FakeLdap(self.LDAP_URL)
+            conn = fakeldap.FakeLdap(self.LDAP_URL)
         else:
-            conn = keystone.common.ldap.LDAPWrapper(self.LDAP_URL)
+            conn = common_ldap.LDAPWrapper(self.LDAP_URL)
         if user is None:
             user = self.LDAP_USER
         if password is None:
@@ -53,7 +56,7 @@ class Identity(identity.Driver):
 
     def _get_user(self, user_id):
         user_ref = self.user.get(user_id)
-        if (not user_ref):
+        if not user_ref:
             return None
         tenants = self.tenant.get_user_tenants(user_id)
         user_ref['tenants'] = []
@@ -63,22 +66,21 @@ class Identity(identity.Driver):
 
     def authenticate(self, user_id=None, tenant_id=None, password=None):
         """Authenticate based on a user, tenant and password.
+
         Expects the user object to have a password field and the tenant to be
         in the list of tenants on the user.
         """
-        #todo get hostname from config
-
         user_ref = self._get_user(user_id)
-        if (user_ref == None):
+        if user_ref is None:
             raise AssertionError('Invalid user / password')
 
         try:
             conn = self.user.get_connection(self.user._id_to_dn(user_id),
                                             password)
-            if (not conn):
+            if not conn:
                 raise AssertionError('Invalid user / password')
-        except  Exception as inst:
-                raise AssertionError('Invalid user / password')
+        except Exception as inst:
+            raise AssertionError('Invalid user / password')
 
         if tenant_id:
             found = False
@@ -87,27 +89,25 @@ class Identity(identity.Driver):
                     found = True
                     break
 
-            if (not found):
+            if not found:
                 raise AssertionError('Invalid tenant')
-
-        #user_ref['tenant_id'] = tenant_id
 
         tenant_ref = self.tenant.get(tenant_id)
         metadata_ref = {}
+        # TODO(termie): this should probably be made into a get roles call
         #if tenant_ref:
         #    metadata_ref =  self.get_metadata(user_id, tenant_id)
         #else:
         #    metadata_ref = {}
-        return  (_filter_user(user_ref),tenant_ref,metadata_ref)
+        return  (_filter_user(user_ref), tenant_ref, metadata_ref)
 
     def create_user(self, user_id, user):
         return self.user.create(user)
 
     def create_tenant(self, tenant_id, tenant):
-
         data = tenant.copy()
         if 'id' not in data or data['id'] is None:
-            data['id'] = str(uuid.uuid4())
+            data['id'] = str(uuid.uuid4().hex)
         return self.tenant.create(tenant)
 
     def add_user_to_tenant(self, tenant_id, user_id):
@@ -155,10 +155,10 @@ class Identity(identity.Driver):
         return self.tenant.update(tenant_id, tenant)
 
     def get_metadata(self, user_id, tenant_id):
-        if (not self.get_tenant(tenant_id)):
+        if not self.get_tenant(tenant_id):
             return None
-        if (not self.get_user(user_id)):
+        if not self.get_user(user_id):
             return None
 
-        metadata_ref = self.get_roles_for_user_and_tenant( user_id, tenant_id)
+        metadata_ref = self.get_roles_for_user_and_tenant(user_id, tenant_id)
         return metadata_ref

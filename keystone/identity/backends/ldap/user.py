@@ -12,7 +12,7 @@ def _ensure_hashed_password(user_ref):
         user_ref['password'] = pw
     return user_ref
 
-class UserAPI(common_ldap.BaseLdap):
+class UserApi(common_ldap.BaseLdap):
     DEFAULT_OU = 'ou=Users'
     DEFAULT_STRUCTURAL_CLASSES = ['person']
     DEFAULT_ID_ATTRIBUTE = 'cn'
@@ -45,7 +45,7 @@ class UserAPI(common_ldap.BaseLdap):
         self.affirm_unique( values)
         #values['id'] = str(uuid.uuid4())
         _ensure_hashed_password(values)
-        values = super(UserAPI, self).create(values)
+        values = super(UserApi, self).create(values)
         tenant_id= values.get('tenant_id')
         if tenant_id is not None:
             self.api.tenant.add_user(values['tenant_id'], values['id'])
@@ -68,13 +68,13 @@ class UserAPI(common_ldap.BaseLdap):
                 if new_tenant:
                     self.api.tenant.add_user(new_tenant, id)
         _ensure_hashed_password(values)
-        super(UserAPI, self).update(id, values, old_obj)
+        super(UserApi, self).update(id, values, old_obj)
 
     def delete(self, id):
         user = self.get(id)
         if user.tenant_id:
             self.api.tenant.remove_user(user.tenant_id, id)
-        super(UserAPI, self).delete(id)
+        super(UserApi, self).delete(id)
         for ref in self.api.role.list_global_roles_for_user(id):
             self.api.role.rolegrant_delete(ref.id)
         for ref in self.api.role.list_tenant_roles_for_user(id):
@@ -126,6 +126,6 @@ class UserAPI(common_ldap.BaseLdap):
         user = self.get(user_id)
         return utils.check_password(password, user.password)
 
-#    add_redirects(locals(), SQLUserAPI, ['get_by_group', 'tenant_group',
+#    add_redirects(locals(), SQLUserApi, ['get_by_group', 'tenant_group',
 #        'tenant_group_delete', 'user_groups_get_all',
 #        'users_tenant_group_get_page', 'users_tenant_group_get_page_markers'])

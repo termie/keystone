@@ -6,7 +6,7 @@ import  user
 
 from keystone.identity import models
 
-class TenantAPI(common_ldap.BaseLdap):  # pylint: disable=W0223
+class TenantApi(common_ldap.BaseLdap):  # pylint: disable=W0223
     DEFAULT_OU = 'ou=Groups'
     DEFAULT_STRUCTURAL_CLASSES = []
     DEFAULT_OBJECTCLASS = 'groupOfNames'
@@ -19,8 +19,8 @@ class TenantAPI(common_ldap.BaseLdap):  # pylint: disable=W0223
     model = models.Tenant
 
     def __init__(self,conf):
-        super(TenantAPI,self).__init__(conf)
-        self.user = user.UserAPI(conf)
+        super(TenantApi,self).__init__(conf)
+        self.user = user.UserApi(conf)
         self.member_attribute = getattr(conf.ldap,'tenant_member_attribute') \
             or self.DEFAULT_MEMBER_ATTRIBUTE
 
@@ -40,7 +40,7 @@ class TenantAPI(common_ldap.BaseLdap):  # pylint: disable=W0223
         data = values.copy()
         if 'id' not in data or data['id'] is None:
             data['id'] = str(uuid.uuid4())
-        return super(TenantAPI, self).create(data)
+        return super(TenantApi, self).create(data)
 
     def get_user_tenants(self, user_id):
         """Returns list of tenants a user has access to
@@ -123,10 +123,10 @@ class TenantAPI(common_ldap.BaseLdap):  # pylint: disable=W0223
         return res
 
     def delete(self, id):
-        super(TenantAPI, self).delete(id)
+        super(TenantApi, self).delete(id)
 
     def update(self, id, values):
         old_obj = self.get(id)
         if old_obj.name != values['name']:
             raise "Changing Name not permitted"
-        super(TenantAPI, self).update(id, values,old_obj)
+        super(TenantApi, self).update(id, values,old_obj)

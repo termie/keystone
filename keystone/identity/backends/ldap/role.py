@@ -31,7 +31,7 @@ class UserRoleAssociation():
 
 
 # pylint: disable=W0212, W0223
-class RoleAPI(common_ldap.BaseLdap):
+class RoleApi(common_ldap.BaseLdap):
     DEFAULT_OU = 'ou=Roles'
     DEFAULT_STRUCTURAL_CLASSES = []
     options_name = 'role'
@@ -42,9 +42,9 @@ class RoleAPI(common_ldap.BaseLdap):
 
 
     def __init__(self,conf):
-        super(RoleAPI,self).__init__(conf)
-        self.user = user.UserAPI(conf)
-        self.tenant = tenant.TenantAPI(conf)
+        super(RoleApi,self).__init__(conf)
+        self.user = user.UserApi(conf)
+        self.tenant = tenant.TenantApi(conf)
         self.member_attribute = getattr(conf.ldap,'role_member_attribute') \
            or self.DEFAULT_MEMBER_ATTRIBUTE
 
@@ -77,14 +77,14 @@ class RoleAPI(common_ldap.BaseLdap):
                                  self.tenant._id_to_dn(tenant_id))
 
     def get(self, id, filter=None):
-        model = super(RoleAPI, self).get(id, filter)
+        model = super(RoleApi, self).get(id, filter)
         return model
 
     def create(self, values):
         #values['id'] = values['name']
         #delattr(values, 'name')
 
-        return super(RoleAPI, self).create(values)
+        return super(RoleApi, self).create(values)
 
     # pylint: disable=W0221
     def get_by_name(self, name, filter=None):
