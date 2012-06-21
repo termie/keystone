@@ -85,6 +85,8 @@ def bootstrap(only_check_for_zips=False):
   for depends_lib in l:
     if depends_lib.startswith('.'):
       continue
+    if depends_lib.endswith('.sh'):
+      continue
     if only_check_for_zips and os.path.exists('%s.zip' % depends_lib):
       continue
     logging.info('Building zip for %s...' % depends_lib)
