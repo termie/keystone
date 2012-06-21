@@ -23,11 +23,20 @@
 import json
 import sys
 
-import eventlet.wsgi
-eventlet.patcher.monkey_patch(all=False, socket=True, time=True, thread=True)
+HAS_EVENTLET = True
+try:
+    import eventlet.wsgi
+    eventlet.patcher.monkey_patch(all=False, socket=True, time=True, thread=True)
+except ImportError:
+    HAS_EVENTLET = False
+
 import routes.middleware
 import ssl
-import webob.dec
+try:
+    import webob.dec as dec
+except ImportError:
+    import dec
+
 import webob.exc
 
 from keystone.common import logging
@@ -147,7 +156,7 @@ class BaseApplication(object):
     def __call__(self, environ, start_response):
         r"""Subclasses will probably want to implement __call__ like this:
 
-        @webob.dec.wsgify(RequestClass=Request)
+        @dec.wsgify(RequestClass=Request)
         def __call__(self, req):
           # Any of the following objects work as responses:
 
@@ -182,7 +191,7 @@ class BaseApplication(object):
 
 
 class Application(BaseApplication):
-    @webob.dec.wsgify
+    @dec.wsgify
     def __call__(self, req):
         arg_dict = req.environ['wsgiorg.routing_args'][1]
         action = arg_dict.pop('action')
@@ -312,7 +321,7 @@ class Middleware(Application):
         """Do whatever you'd like to the response, based on the request."""
         return response
 
-    @webob.dec.wsgify(RequestClass=Request)
+    @dec.wsgify(RequestClass=Request)
     def __call__(self, request):
         response = self.process_request(request)
         if response:
@@ -329,7 +338,7 @@ class Debug(Middleware):
 
     """
 
-    @webob.dec.wsgify(RequestClass=Request)
+    @dec.wsgify(RequestClass=Request)
     def __call__(self, req):
         LOG.debug('%s %s %s', ('*' * 20), 'REQUEST ENVIRON', ('*' * 20))
         for key, value in req.environ.items():
@@ -394,7 +403,7 @@ class Router(object):
         self._router = routes.middleware.RoutesMiddleware(self._dispatch,
                                                           self.map)
 
-    @webob.dec.wsgify(RequestClass=Request)
+    @dec.wsgify(RequestClass=Request)
     def __call__(self, req):
         """Route the incoming request to a controller based on self.map.
 
@@ -404,7 +413,7 @@ class Router(object):
         return self._router
 
     @staticmethod
-    @webob.dec.wsgify(RequestClass=Request)
+    @dec.wsgify(RequestClass=Request)
     def _dispatch(req):
         """Dispatch the request to the appropriate controller.
 

@@ -11,9 +11,7 @@ if DEBUG:
 
 
 def _add_zip_files_to_path():
-  logging.error('hey')
   for possible_zip_file in os.listdir('.'):
-    logging.error('FILE: %s', possible_zip_file)
     if possible_zip_file.endswith('.zip'):
       path = os.path.join(os.getcwd(), possible_zip_file)
       if path in sys.path:
@@ -27,6 +25,9 @@ logging.error('%s', sys.path)
 
 from paste import deploy
 
+from keystone import config
+
+CONF = config.CONF
 
 
 def main():
@@ -34,7 +35,11 @@ def main():
     logging.getLogger().setLevel(logging.DEBUG)
 
   _add_zip_files_to_path()
-  app = deploy.loadapp('config:etc/keystone.conf.sample', 'public_api')
+  config_files = ['keystone.conf']
+  CONF(project='keystone', default_config_files=config_files)
+
+  import sqlalchemy
+  app = deploy.loadapp('config:keystone.conf', 'public_api')
 
   application = app
   util.run_wsgi_app(application)

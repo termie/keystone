@@ -384,7 +384,7 @@ def _get_config_dirs(project=None):
       ~/
       /etc/
     """
-    fix_path = lambda p: os.path.abspath(os.path.expanduser(p))
+    fix_path = lambda p: os.path.abspath(p)
 
     cfg_dirs = [
         fix_path(os.path.join('~', '.' + project)) if project else None,
