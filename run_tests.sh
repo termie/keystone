@@ -91,6 +91,20 @@ if [ $nokeystoneclient -eq 1 ]; then
     noseopts="$noseopts -I test_keystoneclient*"
 fi
 
+function check_openssl_version {
+  # We require openssl version 1.0 or higher
+  openssl_version=`openssl version`
+  if [[ "$openssl_version" != *" 1."* ]];
+  then
+    echo "Incorrect version of OpenSSL ($openssl_version), 1.0.0+ required."
+    exit 1
+  fi
+}
+
+function check_dependencies {
+  check_openssl_version
+}
+
 function run_tests {
   # Just run the test suites in current environment
   ${wrapper} $NOSETESTS
@@ -165,6 +179,8 @@ fi
 if [ $recreate_db -eq 1 ]; then
     rm -f tests.sqlite
 fi
+
+check_dependencies
 
 run_tests
 
