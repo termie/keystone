@@ -1952,7 +1952,8 @@ class IdentityTests(object):
 class TokenTests(object):
     def test_token_crud(self):
         token_id = uuid.uuid4().hex
-        data = {'id': token_id, 'a': 'b',
+        data = {'id': token_id,
+                'a': 'b',
                 'user': {'id': 'testuserid'}}
         data_ref = self.token_api.create_token(token_id, data)
         expires = data_ref.pop('expires')

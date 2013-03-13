@@ -7,6 +7,9 @@ python-memcached
 # Optional backend: LDAP
 python-ldap==2.3.13 # authenticate against an existing LDAP server
 
+# Optional backend: Cassandra
+pycassa==1.8.0-3
+
 # Testing
 coverage # computes code coverage percentages
 mox # mock object framework
