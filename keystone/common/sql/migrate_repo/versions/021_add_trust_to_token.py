@@ -29,10 +29,6 @@ def downgrade_token_table_with_column_drop(meta, migrate_engine):
     #usable after a migration
     token_table.delete()
     token_table.drop_column(
-        sqlalchemy.Column('trust_id',
-                          sqlalchemy.String(64),
-                          nullable=True))
-    token_table.drop_column(
         sqlalchemy.Column('user_id',
                           sqlalchemy.String(64)))
 
@@ -60,11 +56,6 @@ def upgrade_token_table(meta, migrate_engine):
     token_table = sqlalchemy.Table('token', meta, autoload=True)
     token_table.delete()
 
-    create_column_forgiving(
-        migrate_engine, token_table,
-        sqlalchemy.Column('trust_id',
-                          sqlalchemy.String(64),
-                          nullable=True))
     create_column_forgiving(
         migrate_engine, token_table,
         sqlalchemy.Column('user_id', sqlalchemy.String(64)))

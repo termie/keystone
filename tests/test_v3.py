@@ -165,38 +165,6 @@ class RestfulTestCase(test_content_types.RestfulTestCase):
         ref['type'] = uuid.uuid4().hex
         return ref
 
-    def new_trust_ref(self, trustor_user_id, trustee_user_id, project_id=None,
-                      impersonation=None, expires=None, role_ids=None,
-                      role_names=None):
-        ref = self.new_ref()
-
-        ref['trustor_user_id'] = trustor_user_id
-        ref['trustee_user_id'] = trustee_user_id
-        ref['impersonation'] = impersonation or False
-        ref['project_id'] = project_id
-
-        if isinstance(expires, basestring):
-            ref['expires_at'] = expires
-        elif isinstance(expires, dict):
-            ref['expires_at'] = timeutils.strtime(
-                timeutils.utcnow() + datetime.timedelta(**expires),
-                fmt=TIME_FORMAT)
-        elif expires is None:
-            pass
-        else:
-            raise NotImplementedError('Unexpected value for "expires"')
-
-        role_ids = role_ids or []
-        role_names = role_names or []
-        if role_ids or role_names:
-            ref['roles'] = []
-            for role_id in role_ids:
-                ref['roles'].append({'id': role_id})
-            for role_name in role_names:
-                ref['roles'].append({'name': role_name})
-
-        return ref
-
     def admin_request(self, *args, **kwargs):
         """Translates XML responses to dicts.
 
@@ -456,17 +424,6 @@ class RestfulTestCase(test_content_types.RestfulTestCase):
         self.assertEqual(self.role_id, token['roles'][0]['id'])
 
         return token
-
-    def assertValidProjectTrustScopedTokenResponse(self, r, *args, **kwargs):
-        token = self.assertValidProjectScopedTokenResponse(r, *args, **kwargs)
-
-        self.assertIsNotNone(token.get('trust'))
-        self.assertIsNotNone(token['trust'].get('id'))
-        self.assertTrue(isinstance(token['trust'].get('impersonation'), bool))
-        self.assertIsNotNone(token['trust'].get('trustor_user'))
-        self.assertIsNotNone(token['trust'].get('trustee_user'))
-        self.assertIsNotNone(token['trust']['trustor_user'].get('id'))
-        self.assertIsNotNone(token['trust']['trustee_user'].get('id'))
 
     def assertValidDomainScopedTokenResponse(self, r, *args, **kwargs):
         token = self.assertValidScopedTokenResponse(r, *args, **kwargs)
@@ -733,67 +690,9 @@ class RestfulTestCase(test_content_types.RestfulTestCase):
             self.assertEqual(ref['type'], entity['type'])
         return entity
 
-    # trust validation
-
-    def assertValidTrustListResponse(self, resp, *args, **kwargs):
-        return self.assertValidListResponse(
-            resp,
-            'trusts',
-            self.assertValidTrust,
-            *args,
-            **kwargs)
-
-    def assertValidTrustResponse(self, resp, *args, **kwargs):
-        return self.assertValidResponse(
-            resp,
-            'trust',
-            self.assertValidTrust,
-            *args,
-            **kwargs)
-
-    def assertValidTrust(self, entity, ref=None):
-        self.assertIsNotNone(entity.get('trustor_user_id'))
-        self.assertIsNotNone(entity.get('trustee_user_id'))
-
-        self.assertIn('expires_at', entity)
-        if entity['expires_at'] is not None:
-            self.assertValidISO8601ExtendedFormatDatetime(entity['expires_at'])
-
-        # always disallow project xor project_id (neither or both is allowed)
-        has_roles = bool(entity.get('roles'))
-        has_project = bool(entity.get('project_id'))
-        self.assertFalse(has_roles ^ has_project)
-
-        for role in entity['roles']:
-            self.assertIsNotNone(role)
-            self.assertValidEntity(role)
-            self.assertValidRole(role)
-
-        self.assertValidListLinks(entity.get('roles_links'))
-
-        # these were used during dev and shouldn't land in final impl
-        self.assertNotIn('role_ids', entity)
-        self.assertNotIn('role_names', entity)
-
-        if ref:
-            self.assertEqual(ref['trustor_user_id'], entity['trustor_user_id'])
-            self.assertEqual(ref['trustee_user_id'], entity['trustee_user_id'])
-            self.assertEqual(ref['project_id'], entity['project_id'])
-            if entity.get('expires_at') or ref.get('expires_at'):
-                entity_exp = self.assertValidISO8601ExtendedFormatDatetime(
-                    entity['expires_at'])
-                ref_exp = self.assertValidISO8601ExtendedFormatDatetime(
-                    ref['expires_at'])
-                self.assertCloseEnoughForGovernmentWork(entity_exp, ref_exp)
-            else:
-                self.assertEqual(ref.get('expires_at'),
-                                 entity.get('expires_at'))
-
-        return entity
-
     def build_auth_scope(self, project_id=None, project_name=None,
                          project_domain_id=None, project_domain_name=None,
-                         domain_id=None, domain_name=None, trust_id=None):
+                         domain_id=None, domain_name=None):
         scope_data = {}
         if project_id or project_name:
             scope_data['project'] = {}
@@ -814,9 +713,6 @@ class RestfulTestCase(test_content_types.RestfulTestCase):
                 scope_data['domain']['id'] = domain_id
             else:
                 scope_data['domain']['name'] = domain_name
-        if trust_id:
-            scope_data['trust'] = {}
-            scope_data['trust']['id'] = trust_id
         return scope_data
 
     def build_password_auth(self, user_id=None, username=None,

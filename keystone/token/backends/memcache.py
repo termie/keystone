@@ -101,7 +101,7 @@ class Token(token.Driver):
         self._add_to_revocation_list(data)
         return result
 
-    def list_tokens(self, user_id, tenant_id=None, trust_id=None):
+    def list_tokens(self, user_id, tenant_id=None):
         tokens = []
         user_key = self._prefix_user_id(user_id)
         user_record = self.client.get(user_key) or ""
@@ -115,12 +115,6 @@ class Token(token.Driver):
                     if not tenant:
                         continue
                     if tenant.get('id') != tenant_id:
-                        continue
-                if trust_id is not None:
-                    trust = token_ref.get('trust_id')
-                    if not trust:
-                        continue
-                    if trust != trust_id:
                         continue
 
                 tokens.append(token_id)

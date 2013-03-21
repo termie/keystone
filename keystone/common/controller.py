@@ -149,18 +149,9 @@ def filterprotected(*filters):
 
 
 @dependency.requires('identity_api', 'policy_api', 'token_api',
-                     'trust_api', 'catalog_api')
+                     'catalog_api')
 class V2Controller(wsgi.Application):
     """Base controller class for Identity API v2."""
-
-    def _delete_tokens_for_trust(self, context, user_id, trust_id):
-        try:
-            token_list = self.token_api.list_tokens(context, user_id,
-                                                    trust_id=trust_id)
-            for token in token_list:
-                self.token_api.delete_token(context, token)
-        except exception.NotFound:
-            pass
 
     def _delete_tokens_for_user(self, context, user_id, project_id=None):
         #First delete tokens that could get other tokens.
@@ -171,13 +162,6 @@ class V2Controller(wsgi.Application):
                 self.token_api.delete_token(context, token_id)
             except exception.NotFound:
                 pass
-        #delete tokens generated from trusts
-        for trust in self.trust_api.list_trusts_for_trustee(context, user_id):
-            self._delete_tokens_for_trust(context, user_id, trust['id'])
-        for trust in self.trust_api.list_trusts_for_trustor(context, user_id):
-            self._delete_tokens_for_trust(context,
-                                          trust['trustee_user_id'],
-                                          trust['id'])
 
     def _require_attribute(self, ref, attr):
         """Ensures the reference contains the specified attribute."""

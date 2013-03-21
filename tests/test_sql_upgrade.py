@@ -656,24 +656,6 @@ class SqlUpgradeTests(test.TestCase):
         cmd = this_table.delete(id=project['id'])
         self.engine.execute(cmd)
 
-    def test_upgrade_trusts(self):
-        self.assertEqual(self.schema.version, 0, "DB is at version 0")
-        self.upgrade(20)
-        self.assertTableColumns("token",
-                                ["id", "expires", "extra", "valid"])
-        self.upgrade(21)
-        self.assertTableColumns("trust",
-                                ["id", "trustor_user_id",
-                                 "trustee_user_id",
-                                 "project_id", "impersonation",
-                                 "deleted_at",
-                                 "expires_at", "extra"])
-        self.assertTableColumns("trust_role",
-                                ["trust_id", "role_id"])
-        self.assertTableColumns("token",
-                                ["id", "expires", "extra", "valid",
-                                 "trust_id", "user_id"])
-
     def test_fixup_role(self):
         session = self.Session()
         self.assertEqual(self.schema.version, 0, "DB is at version 0")

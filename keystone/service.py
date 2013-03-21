@@ -25,7 +25,6 @@ from keystone import identity
 from keystone import policy
 from keystone import routers
 from keystone import token
-from keystone import trust
 
 
 LOG = logging.getLogger(__name__)
@@ -35,8 +34,7 @@ DRIVERS = dict(
     ec2_api=ec2.Manager(),
     identity_api=identity.Manager(),
     policy_api=policy.Manager(),
-    token_api=token.Manager(),
-    trust_api=trust.Manager())
+    token_api=token.Manager())
 
 
 @logging.fail_gracefully
@@ -83,7 +81,7 @@ def v3_app_factory(global_conf, **local_conf):
     conf.update(local_conf)
     mapper = routes.Mapper()
     v3routers = []
-    for module in [auth, catalog, identity, policy, trust]:
+    for module in [auth, catalog, identity, policy]:
         module.routers.append_v3_routers(mapper, v3routers)
     # Add in the v3 version api
     v3routers.append(routers.VersionV3('admin'))

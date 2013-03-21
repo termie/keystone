@@ -29,7 +29,6 @@ from keystone import config
 from keystone import exception
 from keystone import identity
 from keystone import token as token_module
-from keystone import trust
 from keystone.openstack.common import jsonutils
 from keystone.openstack.common import timeutils
 
@@ -44,7 +43,6 @@ class TokenDataHelper(object):
     def __init__(self, context):
         self.identity_api = identity.Manager()
         self.catalog_api = catalog.Manager()
-        self.trust_api = trust.Manager()
         self.context = context
 
     def _get_filtered_domain(self, domain_id):
@@ -103,65 +101,32 @@ class TokenDataHelper(object):
             roles = self._get_project_roles_for_user(user_id, project_id)
         return roles
 
-    def _populate_user(self, token_data, user_id, domain_id, project_id,
-                       trust):
+    def _populate_user(self, token_data, user_id, domain_id, project_id):
         user_ref = self.identity_api.get_user(self.context,
                                               user_id)
-        if trust:
-            trustor_user_ref = (self.identity_api.get_user(self.context,
-                                trust['trustor_user_id']))
-            if not trustor_user_ref['enabled']:
-                raise exception.Forbidden()
-            if trust['impersonation']:
-                user_ref = trustor_user_ref
-            token_data['trust'] = (
-                {
-                    'id': trust['id'],
-                    'trustor_user': {'id': trust['trustor_user_id']},
-                    'trustee_user': {'id': trust['trustee_user_id']},
-                    'impersonation': trust['impersonation']
-                })
         filtered_user = {
             'id': user_ref['id'],
             'name': user_ref['name'],
             'domain': self._get_filtered_domain(user_ref['domain_id'])}
         token_data['user'] = filtered_user
 
-    def _populate_roles(self, token_data, user_id, domain_id, project_id,
-                        trust):
-        if trust:
-            token_user_id = trust['trustor_user_id']
-            token_project_id = trust['project_id']
-            #trusts do not support domains yet
-            token_domain_id = None
-        else:
-            token_user_id = user_id
-            token_project_id = project_id
-            token_domain_id = domain_id
+    def _populate_roles(self, token_data, user_id, domain_id, project_id):
+        token_user_id = user_id
+        token_project_id = project_id
+        token_domain_id = domain_id
 
         if token_domain_id or token_project_id:
             roles = self._get_roles_for_user(token_user_id,
                                              token_domain_id,
                                              token_project_id)
             filtered_roles = []
-            if trust:
-                for trust_role in trust['roles']:
-                    match_roles = [x for x in roles
-                                   if x['id'] == trust_role['id']]
-                    if match_roles:
-                        filtered_roles.append(match_roles[0])
-                    else:
-                        raise exception.Forbidden()
-            else:
-                for role in roles:
-                    filtered_roles.append({'id': role['id'],
-                                           'name': role['name']})
+            for role in roles:
+                filtered_roles.append({'id': role['id'],
+                                       'name': role['name']})
             token_data['roles'] = filtered_roles
 
     def _populate_service_catalog(self, token_data, user_id,
-                                  domain_id, project_id, trust):
-        if trust:
-            user_id = trust['trustor_user_id']
+                                  domain_id, project_id):
         if project_id or domain_id:
             try:
                 service_catalog = self.catalog_api.get_v3_catalog(
@@ -170,10 +135,9 @@ class TokenDataHelper(object):
             except exception.NotImplemented:
                 service_catalog = {}
             # TODO(gyee): v3 service catalog is not quite completed yet
-            #TODO Enforce Endpoints for trust
             token_data['catalog'] = service_catalog
 
-    def _populate_token(self, token_data, expires=None, trust=None):
+    def _populate_token(self, token_data, expires=None):
         if not expires:
             expires = token_module.default_expire_time()
         if not isinstance(expires, basestring):
@@ -182,20 +146,16 @@ class TokenDataHelper(object):
         token_data['issued_at'] = timeutils.isotime(subsecond=True)
 
     def get_token_data(self, user_id, method_names, extras,
-                       domain_id=None, project_id=None, expires=None,
-                       trust=None):
+                       domain_id=None, project_id=None, expires=None):
         token_data = {'methods': method_names,
                       'extras': extras}
-        if trust:
-            if user_id != trust['trustee_user_id']:
-                raise exception.Forbidden()
 
         self._populate_scope(token_data, domain_id, project_id)
-        self._populate_user(token_data, user_id, domain_id, project_id, trust)
-        self._populate_roles(token_data, user_id, domain_id, project_id, trust)
+        self._populate_user(token_data, user_id, domain_id, project_id)
+        self._populate_roles(token_data, user_id, domain_id, project_id)
         self._populate_service_catalog(token_data, user_id, domain_id,
-                                       project_id, trust)
-        self._populate_token(token_data, expires, trust)
+                                       project_id)
+        self._populate_token(token_data, expires)
         return {'token': token_data}
 
 
@@ -241,7 +201,7 @@ def recreate_token_data(context, token_data=None, expires=None,
 
 def create_token(context, auth_context, auth_info):
     token_data_helper = TokenDataHelper(context)
-    (domain_id, project_id, trust) = auth_info.get_scope()
+    (domain_id, project_id) = auth_info.get_scope()
     method_names = list(set(auth_info.get_method_names() +
                             auth_context.get('method_names', [])))
     token_data = token_data_helper.get_token_data(
@@ -251,7 +211,7 @@ def create_token(context, auth_context, auth_info):
         domain_id,
         project_id,
         auth_context.get('expires_at', None),
-        trust)
+        )
 
     if CONF.signing.token_format == 'UUID':
         token_id = uuid.uuid4().hex
@@ -286,7 +246,7 @@ def create_token(context, auth_context, auth_info):
                     tenant=token_data['token'].get('project'),
                     metadata=metadata_ref,
                     token_data=token_data,
-                    trust_id=trust['id'] if trust else None)
+                    )
         token_api.create_token(context, token_id, data)
     except Exception as e:
         # an identical token may have been created already.

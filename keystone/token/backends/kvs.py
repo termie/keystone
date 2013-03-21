@@ -65,20 +65,6 @@ class Token(kvs.Base, token.Driver):
     def is_expired(self, now, ref):
         return ref.get('expires') and ref.get('expires') < now
 
-    def trust_matches(self, trust_id, ref):
-        return ref.get('trust_id') and ref['trust_id'] == trust_id
-
-    def _list_tokens_for_trust(self, trust_id):
-        tokens = []
-        now = timeutils.utcnow()
-        for token, ref in self.db.items():
-            if not token.startswith('token-') or self.is_expired(now, ref):
-                continue
-            ref_trust_id = ref.get('trust_id')
-            if self.trust_matches(trust_id, ref):
-                tokens.append(token.split('-', 1)[1])
-        return tokens
-
     def _list_tokens_for_user(self, user_id, tenant_id=None):
         def user_matches(user_id, ref):
             return ref.get('user') and ref['user'].get('id') == user_id
@@ -99,11 +85,8 @@ class Token(kvs.Base, token.Driver):
                         tokens.append(token.split('-', 1)[1])
         return tokens
 
-    def list_tokens(self, user_id, tenant_id=None, trust_id=None):
-        if trust_id:
-            return self._list_tokens_for_trust(trust_id)
-        else:
-            return self._list_tokens_for_user(user_id, tenant_id)
+    def list_tokens(self, user_id, tenant_id=None):
+        return self._list_tokens_for_user(user_id, tenant_id)
 
     def list_revoked_tokens(self):
         tokens = []

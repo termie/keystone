@@ -22,7 +22,6 @@ from keystone import exception
 from keystone import identity
 from keystone import test
 from keystone.token.backends import kvs as token_kvs
-from keystone.trust.backends import kvs as trust_kvs
 
 import default_fixtures
 import test_backend
@@ -73,18 +72,6 @@ class KvsToken(test.TestCase, test_backend.TokenTests):
     def setUp(self):
         super(KvsToken, self).setUp()
         self.token_api = token_kvs.Token(db={})
-
-
-class KvsTrust(test.TestCase, test_backend.TrustTests):
-    def setUp(self):
-        super(KvsTrust, self).setUp()
-        identity.CONF.identity.driver = \
-            'keystone.identity.backends.kvs.Identity'
-        self.identity_man = identity.Manager()
-        self.identity_api = self.identity_man.driver
-        self.trust_api = trust_kvs.Trust(db={})
-        self.catalog_api = catalog_kvs.Catalog(db={})
-        self.load_fixtures(default_fixtures)
 
 
 class KvsCatalog(test.TestCase, test_backend.CatalogTests):

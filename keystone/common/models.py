@@ -42,7 +42,6 @@ class Token(Model):
         user
         tenant
         metadata
-        trust_id
     """
 
     required_keys = ('id', 'expires')
@@ -148,20 +147,6 @@ class Role(Model):
 
     required_keys = ('id', 'name')
     optional_keys = tuple()
-
-
-class Trust(Model):
-    """Trust object.
-
-    Required keys:
-        id
-        trustor_user_id
-        trustee_user_id
-        project_id
-    """
-
-    required_keys = ('id', 'trustor_user_id', 'trustee_user_id', 'project_id')
-    optional_keys = tuple('expires_at')
 
 
 class Domain(Model):

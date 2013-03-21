@@ -22,7 +22,7 @@ class ExternalAuthNotApplicable(Exception):
     pass
 
 
-@dependency.requires('catalog_api', 'trust_api', 'token_api')
+@dependency.requires('catalog_api', 'token_api')
 class Auth(controller.V2Controller):
     def ca_cert(self, context, auth=None):
         ca_file = open(CONF.signing.ca_certs, 'r')
@@ -80,7 +80,6 @@ class Auth(controller.V2Controller):
 
         user_ref, tenant_ref, metadata_ref, expiry = auth_info
         core.validate_auth_info(self, context, user_ref, tenant_ref)
-        trust_id = metadata_ref.get('trust_id')
         user_ref = self._filter_domain_id(user_ref)
         if tenant_ref:
             tenant_ref = self._filter_domain_id(tenant_ref)
@@ -132,8 +131,7 @@ class Auth(controller.V2Controller):
                                         expires=auth_token_data['expires'],
                                         user=user_ref,
                                         tenant=tenant_ref,
-                                        metadata=metadata_ref,
-                                        trust_id=trust_id))
+                                        metadata=metadata_ref))
         except Exception as e:
             # an identical token may have been created already.
             # if so, return the token_data as it is also identical
@@ -171,42 +169,10 @@ class Auth(controller.V2Controller):
         except exception.NotFound as e:
             raise exception.Unauthorized(e)
 
-        #A trust token cannot be used to get another token
-        if 'trust' in old_token_ref:
-            raise exception.Forbidden()
-        if 'trust_id' in old_token_ref['metadata']:
-            raise exception.Forbidden()
-
         user_ref = old_token_ref['user']
         user_id = user_ref['id']
-        if 'trust_id' in auth:
-            trust_ref = self.trust_api.get_trust(context, auth['trust_id'])
-            if trust_ref is None:
-                raise exception.Forbidden()
-            if user_id != trust_ref['trustee_user_id']:
-                raise exception.Forbidden()
-            if ('expires' in trust_ref) and (trust_ref['expires']):
-                expiry = trust_ref['expires']
-                if expiry < timeutils.parse_isotime(timeutils.isotime()):
-                    raise exception.Forbidden()()
-            user_id = trust_ref['trustor_user_id']
-            trustor_user_ref = (self.identity_api.get_user(
-                                context=context,
-                                user_id=trust_ref['trustor_user_id']))
-            if not trustor_user_ref['enabled']:
-                raise exception.Forbidden()()
-            trustee_user_ref = self.identity_api.get_user(
-                context, trust_ref['trustee_user_id'])
-            if not trustee_user_ref['enabled']:
-                raise exception.Forbidden()()
-            if trust_ref['impersonation'] == 'True':
-                current_user_ref = trustor_user_ref
-            else:
-                current_user_ref = trustee_user_ref
-
-        else:
-            current_user_ref = self.identity_api.get_user(context=context,
-                                                          user_id=user_id)
+        current_user_ref = self.identity_api.get_user(context=context,
+                                                      user_id=user_id)
 
         tenant_id = self._get_project_id_from_auth(context, auth)
 
@@ -221,24 +187,6 @@ class Auth(controller.V2Controller):
                                context, user_id, tenant_id))
 
         expiry = old_token_ref['expires']
-        if 'trust_id' in auth:
-            trust_id = auth['trust_id']
-            trust_roles = []
-            for role in trust_ref['roles']:
-                if not 'roles' in metadata_ref:
-                    raise exception.Forbidden()()
-                if role['id'] in metadata_ref['roles']:
-                    trust_roles.append(role['id'])
-                else:
-                    raise exception.Forbidden()
-            if 'expiry' in trust_ref and trust_ref['expiry']:
-                trust_expiry = timeutils.parse_isotime(trust_ref['expiry'])
-                if trust_expiry < expiry:
-                    expiry = trust_expiry
-            metadata_ref['roles'] = trust_roles
-            metadata_ref['trustee_user_id'] = trust_ref['trustee_user_id']
-            metadata_ref['trust_id'] = trust_id
-
         auth_token_data = self._get_auth_token_data(current_user_ref,
                                                     tenant_ref,
                                                     metadata_ref,
@@ -491,25 +439,7 @@ class Auth(controller.V2Controller):
                 # scoped to project in non-default domain is prohibited
                 if project_domain_id != DEFAULT_DOMAIN_ID:
                     raise exception.Unauthorized(msg)
-            # if token is scoped to trust, both trustor and trustee must
-            # be in the default domain. Furthermore, the delegated project
-            # must also be in the default domain
             metadata_ref = token_ref['metadata']
-            if 'trust_id' in metadata_ref:
-                trust_ref = self.trust_api.get_trust(context,
-                                                     metadata_ref['trust_id'])
-                trustee_user_ref = self.identity_api.get_user(
-                    context, trust_ref['trustee_user_id'])
-                if trustee_user_ref['domain_id'] != DEFAULT_DOMAIN_ID:
-                    raise exception.Unauthorized(msg)
-                trustor_user_ref = self.identity_api.get_user(
-                    context, trust_ref['trustor_user_id'])
-                if trustor_user_ref['domain_id'] != DEFAULT_DOMAIN_ID:
-                    raise exception.Unauthorized(msg)
-                project_ref = self.identity_api.get_project(
-                    context, trust_ref['project_id'])
-                if project_ref['domain_id'] != DEFAULT_DOMAIN_ID:
-                    raise exception.Unauthorized(msg)
 
     # admin only
     def validate_token_head(self, context, token_id):
@@ -635,11 +565,6 @@ class Auth(controller.V2Controller):
                 o['access']['metadata'] = {'is_admin': 0}
         if 'roles' in metadata_ref:
             o['access']['metadata']['roles'] = metadata_ref['roles']
-        if 'trust_id' in metadata_ref:
-            o['access']['trust'] = {'trustee_user_id':
-                                    metadata_ref['trustee_user_id'],
-                                    'id': metadata_ref['trust_id']
-                                    }
         return o
 
     @classmethod

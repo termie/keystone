@@ -196,10 +196,6 @@ class GroupNotFound(NotFound):
     """Could not find group: %(group_id)s"""
 
 
-class TrustNotFound(NotFound):
-    """Could not find trust: %(trust_id)s"""
-
-
 class CredentialNotFound(NotFound):
     """Could not find credential: %(credential_id)s"""
 
