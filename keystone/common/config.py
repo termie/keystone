@@ -388,6 +388,9 @@ def configure():
     register_bool('use_tls', group='ldap', default=False)
     register_str('tls_req_cert', group='ldap', default='demand')
 
+    # oauth
+    register_str('driver', group='oauth', default='')
+
     # pam
     register_str('url', group='pam', default=None)
     register_str('userid', group='pam', default=None)

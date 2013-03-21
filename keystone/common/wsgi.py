@@ -217,6 +217,7 @@ class Application(BaseApplication):
 
         # allow middleware up the stack to provide context & params
         context = req.environ.get(CONTEXT_ENV, {})
+        context['request'] = req
         context['query_string'] = dict(req.params.iteritems())
         context['path'] = req.environ['PATH_INFO']
         params = req.environ.get(PARAMS_ENV, {})
