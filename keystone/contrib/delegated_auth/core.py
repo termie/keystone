@@ -202,9 +202,9 @@ class DummyOauthDriver(object):
     def get_consumer(self, context, consumer_id):
         return oauth.Consumer('foo-key', 'foo-secret')
 
-    def create_request_token(self, context, user_id, tenant_id, roles):
+    def create_request_token(self, context, consumer_id, roles):
         """Make a request token that the the user must authorize."""
-        pass
+        return {'id': 'req-key', 'secret': 'req-secret'}
 
 
 #@dependency.requires('oauth_api')
@@ -227,13 +227,15 @@ class OauthFlowManiaV3(controller.V3Controller):
         oauth_server = oauth.Server(
             {'HMAC-SHA1': oauth.SignatureMethod_HMAC_SHA1()})
 
-        params = oauth_server.verify_request(oauth_request, consumer, token)
+        params = oauth_server.verify_request(
+            oauth_request, consumer, token=None)
+        roles = params['requested_roles'].split(',')
 
-        user = get_user_from_context(context)
-        tenant = get_tenant_from_context(context)
-        roles = check_request_roles_against_available(context, requested_roles)
+        #user = get_user_from_context(context)
+        #tenant = get_tenant_from_context(context)
+        #roles = check_request_roles_against_available(context, requested_roles)
 
         token = self.oauth_api.create_request_token(
-            context, user['id'], tenant['id'], roles)
+            context, consumer_key, roles)
         return {'request_token': token['id'],
                 'request_token_secret': token['secret']}
