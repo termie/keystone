@@ -195,8 +195,7 @@ class AuthorizationCrudV3(controller.V3Controller):
     def delete_user_authorization(self, context, user_id, authz_id):
         self._delete_tokens_for_user(context, user_id)
         return self.oauth_api.delete_user_authorization(
-                context, user_id, authz_id)
-
+            context, user_id, authz_id)
 
 
 class DummyOauthDriver(object):
@@ -218,17 +217,15 @@ class OauthFlowManiaV3(controller.V3Controller):
         request = context['request']
         consumer_key = request.GET.get('oauth_consumer_key')
         consumer = self.oauth_api.get_consumer(context, consumer_key)
-        token = None
 
         oauth_request = oauth.Request.from_request(
-                http_method='GET',
-                http_url=request.path_url,
-                headers=request.headers,
-                query_string=request.query_string
-                )
+            http_method='GET',
+            http_url=request.path_url,
+            headers=request.headers,
+            query_string=request.query_string)
 
         oauth_server = oauth.Server(
-                {'HMAC-SHA1': oauth.SignatureMethod_HMAC_SHA1()})
+            {'HMAC-SHA1': oauth.SignatureMethod_HMAC_SHA1()})
 
         params = oauth_server.verify_request(oauth_request, consumer, token)
 
@@ -237,9 +234,6 @@ class OauthFlowManiaV3(controller.V3Controller):
         roles = check_request_roles_against_available(context, requested_roles)
 
         token = self.oauth_api.create_request_token(
-                context, user['id'], tenant['id'], roles)
-        return {'request_token': token['id']
-
-
-
-
+            context, user['id'], tenant['id'], roles)
+        return {'request_token': token['id'],
+                'request_token_secret': token['secret']}
