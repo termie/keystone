@@ -16,13 +16,12 @@
 
 import webob
 
+from keystone import test
 from keystone.common import oauth
 from keystone.contrib.delegated_auth import core as delegated_auth
 
-import test_content_types
 
-class OauthFlowTest(test_content_types.RestfulTestCase):
-
+class OauthFlowTest(test.TestCase):
     def _wsgi_request(self, *args, **kw):
         return webob.Request.blank(*args, **kw)
 

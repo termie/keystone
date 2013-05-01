@@ -87,11 +87,11 @@ class DelegatedAuthExtension(wsgi.ExtensionRouter):
         oauth_controller = OauthFlowManiaV3()
 
         # request keystone token
-        #mapper.connect(
-        #    '/DA/authenticate',
-        #    controller=da_controller,
-        #    action='authenticate',
-        #    conditions=dict(method=['POST']))
+        mapper.connect(
+            '/DA/authenticate',
+            controller=oauth_controller,
+            action='authenticate',
+            conditions=dict(method=['POST']))
 
         # Basic admin-only consumer crud
         mapper.connect(
@@ -231,11 +231,115 @@ class OauthFlowManiaV3(controller.V3Controller):
             oauth_request, consumer, token=None)
         roles = params['requested_roles'].split(',')
 
-        #user = get_user_from_context(context)
-        #tenant = get_tenant_from_context(context)
-        #roles = check_request_roles_against_available(context, requested_roles)
-
         token = self.oauth_api.create_request_token(
             context, consumer_key, roles)
         return {'request_token': token['id'],
                 'request_token_secret': token['secret']}
+
+    def create_access_token(self, context):
+        # boilerplate duplicated from above
+        self.oauth_api = DummyOauthDriver()
+        request = context['request']
+        consumer_key = request.GET.get('oauth_consumer_key')
+        request_token_key = request.GET.get('oauth_request_token')
+        consumer = self.oauth_api.get_consumer(context, consumer_key)
+        request_token = self.oauth_api.get_request_token(
+            context, request_token_key)
+
+        oauth_request = oauth.Request.from_request(
+            http_method='GET',
+            http_url=request.path_url,
+            headers=request.headers,
+            query_string=request.query_string)
+
+        oauth_server = oauth.Server(
+            {'HMAC-SHA1': oauth.SignatureMethod_HMAC_SHA1()})
+
+        params = oauth_server.verify_request(
+            oauth_request, consumer, token=request_token)
+
+        if request_token['consumer'] != params['consumer_key']:
+            raise exception.Unauthorized()
+
+        # do a bunch of checks
+        if (not request_token.get('user_id')
+            or not request_token.get('tenant_id')):
+            raise exception.Unauthorized()
+
+        access_token = self.oauth_api.create_access_token(
+            context,
+            user_id=request_token['user_id'],
+            tenant_id=request_token['tenant_id'],
+            consumer_id=request_token['consumer_id'],
+            roles=request_token['roles'])
+        return {'access_token': access_token['id'],
+                'access_token_secret': access_token['secret']}
+
+    def authenticate(self, context):
+        """Turn a signed request with an access key into a keystone token."""
+        # boilerplate duplicated from above
+        self.oauth_api = DummyOauthDriver()
+        request = context['request']
+        consumer_key = request.POST.get('oauth_consumer_key')
+        access_token_key = request.POST.get('oauth_access_token')
+        consumer = self.oauth_api.get_consumer(context, consumer_key)
+        access_token = self.oauth_api.get_access_token(
+            context, access_token_key)
+
+        oauth_request = oauth.Request.from_request(
+            http_method='POST',
+            http_url=request.path_url,
+            headers=request.headers,
+            query_string=request.query_string)
+
+        oauth_server = oauth.Server(
+            {'HMAC-SHA1': oauth.SignatureMethod_HMAC_SHA1()})
+
+        params = oauth_server.verify_request(
+            oauth_request, consumer, token=request_token)
+
+        if access_token['consumer'] != params['consumer_key']:
+            raise exception.Unauthorized()
+
+        # INSERT TOKEN GENERATION CODE HERE
+
+
+    def authorize(self, context, request_token_id, requested_roles):
+        """An authenticated user is going to authorize a request token.
+
+        As a security precaution, the requested roles must match those in
+        the request token. Because this is in a CLI-only world at the moment,
+        there is not another easy way to make sure the user knows which roles
+        are being requested before authorizing.
+        """
+        # get the current user
+        # TODO(termie): this obvs need to turn into a helper function
+        user_token_ref = self.token_api.get_token(context,
+                                                  token_id=context['token_id'])
+        creds = user_token_ref['metadata'].copy()
+        # translate roles to names
+        creds['roles'] = [self.identity_api.get_role(context, role)['name']
+                          for role in creds.get('roles', [])]
+
+        creds['user_id'] = user_token_ref['user'].get('id')
+        creds['tenant_id'] = user_token_ref['tenant'].get('id')
+
+        # verify that the user has the requested roles
+        roles = requested_roles.split(',')
+        if set(roles) not in set(creds['roles']):
+            raise exception.Unauthorized()
+
+        # grab the request token
+        req_token_ref = self.oauth_api.get_request_token(context,
+                                                         request_token_id)
+        req_token_roles = req_token_ref['roles']
+
+        # make sure the roles match
+        if set(req_token_roles) != set(roles):
+            raise exception.Unauthorized()
+
+        authed_token_ref = self.oauth_api.authorize_request_token(
+            context, request_token_id, creds['user_id'], creds['tenant_id'])
+
+        return {'request_token': authed_token_ref['id'],
+                'oauth_verifier': authed_token_ref['verifier']}
